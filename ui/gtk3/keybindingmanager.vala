@@ -201,7 +201,6 @@ public class KeybindingManager : GLib.Object {
 
     private void event_handler(Gdk.Event event) {
         do {
-            int i = 0;
             if (event.any.window != Gdk.get_default_root_window()) {
                 break;
             }
