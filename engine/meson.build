@@ -23,19 +23,43 @@ ibus_engine_simple = executable('ibus-engine-simple',
 )
 
 # simple.xml
-simple_xml = custom_target('simple.xml',
-  output: 'simple.xml',
+if fs.exists(meson.current_source_dir() / 'simple.xml.in')
+  simple_xml_in = files('simple.xml.in')
+else
+  simple_xml_in = custom_target(
+    'simple.xml.in',
+    output: 'simple.xml.in',
+    command: [
+      python,
+      find_program('gensimple.py'),
+      '--input', xkbconfig_base / 'rules' / 'evdev.xml',
+      '--output=@OUTPUT@',
+      '--version', meson.project_version(),
+      '--exec-path', '@libexecdir@/ibus-engine-simple',
+      '--iso-path',
+        isocodes_prefix / 'share' / 'xml' / 'iso-codes' / 'iso_639.xml',
+      '--first-language',
+    ],
+  )
+endif
+
+simple_xml = custom_target(
+  'simple.xml',
+  input: simple_xml_in,
+  output: '@BASENAME@',
   command: [
-    python,
-    find_program('gensimple.py'),
-    '--input', xkbconfig_base / 'rules' / 'evdev.xml',
-    '--output=@OUTPUT@',
-    '--version', meson.project_version(),
-    '--exec-path',
-      get_option('prefix') / get_option('libexecdir') / 'ibus-engine-simple',
-    '--iso-path',
-      isocodes_prefix / 'share' / 'xml' / 'iso-codes' / 'iso_639.xml',
-    '--first-language',
+    python, '-c', '''
+import sys
+infile, outfile, libexec = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(infile, "r") as f:
+    content = f.read()
+content = content.replace("@libexecdir@", libexec)
+with open(outfile, "w") as f:
+    f.write(content)
+''',
+    '@INPUT@',
+    '@OUTPUT@',
+    get_option('prefix') / get_option('libexecdir'),
   ],
   install: true,
   install_dir: pkgdatadir / 'component',
