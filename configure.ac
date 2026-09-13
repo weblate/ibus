@@ -512,14 +512,6 @@ fi
 AC_PATH_PROG(ENV_IBUS_TEST, env)
 AC_SUBST(ENV_IBUS_TEST)
 
-AC_ARG_ENABLE(python2,
-    AS_HELP_STRING([--disable-python2],
-                   [Do not install bindings/pygobject/gi and ibus for python2.
-                    '--disable-python2' bring '--disable-python-library'.]),
-    [enable_python2=$enableval],
-    [enable_python2=yes]
-)
-
 AC_ARG_ENABLE(setup,
     AS_HELP_STRING([--disable-setup],
                    [Do not use setup ui.]),
@@ -530,26 +522,12 @@ AC_ARG_ENABLE(setup,
 # Define python version
 AC_ARG_WITH(python,
     AS_HELP_STRING([--with-python[=PATH]],
-        [Select python2 or python3]),
+        [Select python version 3 or later]),
     [PYTHON=$with_python], []
 )
 
 AM_PATH_PYTHON([2.5])
 
-if test x"$enable_python2" != x"yes"; then
-    enable_python_library=no
-    PYTHON2=
-    enable_python2="no (disabled, use --enable-python2 to enable)"
-else
-    AC_PATH_PROG(PYTHON2, python2)
-
-    if test x"$PYTHON2" = x""; then
-        PYTHON2=$PYTHON
-    fi
-fi
-
-AM_CONDITIONAL([ENABLE_PYTHON2], [test x"$enable_python2" = x"yes"])
-AM_CONDITIONAL([ENABLE_PYTHON_LIBRARY], [test x"$enable_python_library" = x"yes"])
 AM_CONDITIONAL([ENABLE_SETUP], [test x"$enable_setup" = x"yes"])
 AM_CONDITIONAL([ENABLE_DAEMON], [true])
 
@@ -577,11 +555,6 @@ if test "x$enable_pygobject" = "xyes"; then
         pyoverridesdir=`$PYTHON -c "import gi; print(gi._overridesdir)"`
     fi
     AC_SUBST(pyoverridesdir)
-
-    if test x"$enable_python2" = x"yes"; then
-        py2overridesdir=`$PYTHON2 -c "import gi; print(gi._overridesdir)"`
-        AC_SUBST(py2overridesdir)
-    fi
 fi
 
 AM_CONDITIONAL(ENABLE_PYGOBJECT, test x"$enable_pygobject" = "xyes")
@@ -1009,7 +982,6 @@ Build options:
   PYTHON2                       $PYTHON2
   Python overrides dir          $pyoverridesdir
   Python GI GnomeDesktop module $enable_pygnome_desktop
-  Enable python2                $enable_python2
   Gtk2 immodule dir             $GTK2_IM_MODULEDIR
   Gtk3 immodule dir             $GTK3_IM_MODULEDIR
   Gtk4 immodule dir             $GTK4_IM_MODULEDIR
