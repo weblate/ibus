@@ -1099,6 +1099,33 @@ ibus_wayland_im_update_virtual_xkb_state (IBusWaylandIM *wlim,
                                    0, mods_locked, 0, 0, group);
         }
     }
+    if (priv->iso_level3_state == IBUS_KEY_ISO_LEVEL_STATE_RELEASE ||
+        priv->iso_level5_state == IBUS_KEY_ISO_LEVEL_STATE_RELEASE) {
+        xkb_mod_mask_t new2_mods_depressed;
+        new2_mods_depressed = xkb_state_serialize_mods (active_key->state,
+                                                        XKB_STATE_DEPRESSED |
+                                                        XKB_STATE_LATCHED);
+        /* If both user and system keymap is "fr(ergol)" keymap,
+         * priv->is_virtual_latch_state is %FALSE but the invalid
+         * "MOD3(Level5)" state should be released when <AD09> key is typed
+         * twice.
+         * xkb_state_update_key() saves the key press of "ISO_Level5_Latch".
+         * and it sets "MOD3(Level5)" state as `XKB_STATE_MODS_LATCHED` with
+         * the key release of "ISO_Level5_Latch".
+         */
+        if (G_UNLIKELY (new_mods_depressed != new2_mods_depressed)) {
+            if (priv->iso_level3_state == IBUS_KEY_ISO_LEVEL_STATE_RELEASE &&
+                new2_mods_depressed & active_key->mod5_mask) {
+                new2_mods_depressed &= ~active_key->mod5_mask;
+            }
+            if (priv->iso_level5_state == IBUS_KEY_ISO_LEVEL_STATE_RELEASE &&
+                new2_mods_depressed & active_key->mod3_mask) {
+                new2_mods_depressed &= ~active_key->mod3_mask;
+            }
+            xkb_state_update_mask (active_key->state, new2_mods_depressed,
+                                   0, mods_locked, 0, 0, group);
+        }
+    }
 }
 
 
@@ -2411,6 +2438,17 @@ key_event_check_repeat (IBusWaylandIM       *wlim,
             priv->pressed_dead_key = event->sym;
         } else {
             priv->released_dead_key_wo_press = 0;
+            /* With "fr(ergol)" keymap, When AltGr + <AD09> key is pressed,
+             * the pressed keysym is "apostrophe". In case that AltGr is
+             * released earlier than <AD09> key, the key release of
+             * "apostrophe" is not generated.
+             * Probably we can ignore the key repeat with "ISO_Level*_Shift"
+             * state.
+             */
+            if (priv->iso_level5_state == IBUS_KEY_ISO_LEVEL_STATE_SHIFT ||
+                priv->iso_level3_state == IBUS_KEY_ISO_LEVEL_STATE_SHIFT) {
+                return TRUE;
+            }
         }
         source = g_timeout_source_new (priv->repeat_delay);
         g_source_attach (source, NULL);
