@@ -30,7 +30,7 @@ private const string IBUS_SCHEMAS_PANEL_EMOJI =
 private const string SYSTEMD_SESSION_GNOME_FILE =
         "org.freedesktop.IBus.session.GNOME.service";
 
-#if IBUS_WAYLAND
+#if ENABLE_WAYLAND
 bool is_wayland_session = false;
 #endif
 bool name_only = false;
@@ -41,6 +41,7 @@ string engine_id = null;
 bool verbose = false;
 string daemon_type = null;
 string systemd_service_file = null;
+string display_type = null;
 GLib.MainLoop loop = null;
 
 
@@ -214,7 +215,7 @@ is_running_daemon_via_systemd(GLib.DBusConnection connection,
 }
 
 
-#if IBUS_WAYLAND
+#if ENABLE_WAYLAND
 void registry_global_cb(void       *data,
                         Wl.Registry wl_registry,
                         uint32      name,
@@ -746,7 +747,7 @@ int start_daemon_real(string[] argv,
         systemd_service_file = SYSTEMD_SESSION_GNOME_FILE;
 
     if (daemon_type == null || daemon_type == "wayland") {
-#if IBUS_WAYLAND
+#if ENABLE_WAYLAND
         if (start_daemon_in_wayland(restart, argv))
             return Posix.EXIT_SUCCESS;
 #else
@@ -1143,6 +1144,77 @@ int read_im_module(string[] argv) {
 }
 
 
+int if_display_is_open(string[] argv) {
+    const OptionEntry[] options = {
+        { "type", 0, 0, OptionArg.STRING, out display_type,
+          N_("Specify DISPLAY type with \"wayland\" or \"x11\". Default is" ),
+          "TYPE" },
+        { "verbose", 0, 0, OptionArg.NONE, out verbose,
+          N_("Show debug messages."), null },
+        { null }
+    };
+
+    var option = new OptionContext();
+    option.add_main_entries(options, Config.GETTEXT_PACKAGE);
+    option.set_ignore_unknown_options(true);
+
+    try {
+        option.parse(ref argv);
+    } catch (OptionError e) {
+        stderr.printf("%s\n", e.message);
+        return Posix.EXIT_FAILURE;
+    }
+#if ENABLE_WAYLAND
+    if (display_type == null)
+        display_type = "wayland";
+#endif
+#if ENABLE_XIM
+    if (display_type == null)
+        display_type = "x11";
+#endif
+    if (display_type == null) {
+        warning("ibus command is not built correctly.");
+        return 77;
+    }
+    if (verbose)
+        stderr.printf("Checking display with type \"%s\"...\n", display_type);
+    if (display_type == "wayland") {
+#if ENABLE_WAYLAND
+        if (check_wayland_protocols()) {
+            if (verbose)
+                stderr.printf("succeeded.\n");
+            return Posix.EXIT_SUCCESS;
+        } else {
+            if (verbose)
+                stderr.printf("failed.\n");
+            return Posix.EXIT_FAILURE;
+        }
+#else
+        warning("failed: Wayland display is not supported.");
+        return 77;
+#endif
+    }
+    if (display_type == "x11") {
+#if ENABLE_XIM
+        if (new X.Display(null) != null) {
+            if (verbose)
+                stderr.printf("succeeded.\n");
+            return Posix.EXIT_SUCCESS;
+        } else {
+            if (verbose)
+                stderr.printf("failed.\n");
+            return Posix.EXIT_FAILURE;
+        }
+#else
+        warning("failed: X11 display is not supported.");
+        return 77;
+#endif
+    }
+    warning("failed: Display type %s is not supported.", display_type);
+    return 77;
+}
+
+
 int print_help(string[] argv) {
     print_usage(stdout);
     return Posix.EXIT_SUCCESS;
@@ -1176,6 +1248,7 @@ const CommandEntry commands[]  = {
 #endif
     { "im-module", N_("Retrieve im-module value from GTK instance"),
       read_im_module },
+    { "display", N_("Check if display is open"), if_display_is_open },
     { "help", N_("Show this information"), print_help }
 };
 
@@ -1186,6 +1259,8 @@ void print_usage(FileStream stream) {
     stream.printf(_("Usage: %s COMMAND [OPTION...]\n\n"), program_name);
     stream.printf(_("Commands:\n"));
     for (int i = 0; i < commands.length; i++) {
+        if (commands[i].name == "display")
+            continue;
         stream.printf("  %-12s    %s\n",
                       commands[i].name,
                       GLib.dgettext(null, commands[i].description));

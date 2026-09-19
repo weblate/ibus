@@ -26,8 +26,13 @@ if get_option('emoji-dict') and get_option('ui')
   ibus_bin_valaflags += [ '-D', 'EMOJI_DICT' ]
 endif
 
+if enable_xim
+  ibus_bin_valaflags += [ '-D', 'ENABLE_XIM' ]
+  ibus_bin_deps += [ x11_dep ]
+endif
+
 if enable_wayland
-  ibus_bin_valaflags += [ '-D', 'IBUS_WAYLAND' ]
+  ibus_bin_valaflags += [ '-D', 'ENABLE_WAYLAND' ]
   ibus_bin_deps += [ wayland_dep ]
 endif
 

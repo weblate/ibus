@@ -3,7 +3,7 @@
 # ibus - The Input Bus
 #
 # Copyright (c) 2007-2013 Peng Huang <shawn.p.huang@gmail.com>
-# Copyright (c) 2015-2025 Takao Fujiwara <takao.fujiwara1@gmail.com>
+# Copyright (c) 2015-2026 Takao Fujiwara <takao.fujiwara1@gmail.com>
 # Copyright (c) 2007-2017 Red Hat, Inc.
 #
 # This library is free software; you can redistribute it and/or
@@ -134,9 +134,18 @@ AM_VALAFLAGS += \
 endif
 endif
 
+if ENABLE_XIM
+AM_VALAFLAGS += \
+    --define=ENABLE_XIM \
+    --pkg=x11 \
+    $(NULL)
+AM_CFLAGS += @X11_CFLAGS@
+AM_LDADD += @X11_LIBS@
+endif
+
 if ENABLE_WAYLAND
 AM_VALAFLAGS += \
-    --define=IBUS_WAYLAND \
+    --define=ENABLE_WAYLAND \
     --pkg=wayland-client \
     $(NULL)
 AM_CFLAGS += @WAYLAND_CFLAGS@
